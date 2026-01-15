@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { format } from "date-fns";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,20 +11,14 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAppStore } from "@/lib/store";
 import { scheduleExams } from "@/lib/ai-engine";
 import {
   Play,
   Building2,
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   FileText,
   CheckCircle,
@@ -41,9 +36,12 @@ import {
   RotateCcw,
   Layers,
   Shield,
-  Users,
+  X,
+  Check,
+  CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function SchedulerPage() {
   const {
@@ -68,6 +66,7 @@ export default function SchedulerPage() {
   } = useAppStore();
 
   const [status, setStatus] = useState<"ready" | "running" | "success" | "error">("ready");
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const handleGenerateTimetable = useCallback(async () => {
     setIsScheduling(true);
@@ -128,6 +127,55 @@ export default function SchedulerPage() {
     addActivity,
   ]);
 
+  // Multi-select toggle helpers
+  const toggleRoom = (roomId: string) => {
+    const current = lockConstraints.roomIds || [];
+    const updated = current.includes(roomId)
+      ? current.filter((id) => id !== roomId)
+      : [...current, roomId];
+    setLockConstraints({ ...lockConstraints, roomIds: updated.length ? updated : undefined });
+  };
+
+  const toggleTimeslot = (timeslotId: string) => {
+    const current = lockConstraints.timeslotIds || [];
+    const updated = current.includes(timeslotId)
+      ? current.filter((id) => id !== timeslotId)
+      : [...current, timeslotId];
+    setLockConstraints({ ...lockConstraints, timeslotIds: updated.length ? updated : undefined });
+  };
+
+  const toggleInvigilator = (invigilatorId: string) => {
+    const current = lockConstraints.invigilatorIds || [];
+    const updated = current.includes(invigilatorId)
+      ? current.filter((id) => id !== invigilatorId)
+      : [...current, invigilatorId];
+    setLockConstraints({ ...lockConstraints, invigilatorIds: updated.length ? updated : undefined });
+  };
+
+  const togglePriorityExam = (examId: string) => {
+    const current = lockConstraints.priorityExamIds || [];
+    const updated = current.includes(examId)
+      ? current.filter((id) => id !== examId)
+      : [...current, examId];
+    setLockConstraints({ ...lockConstraints, priorityExamIds: updated.length ? updated : undefined });
+  };
+
+  const toggleDate = (date: Date | undefined) => {
+    if (!date) return;
+    const dateStr = format(date, "yyyy-MM-dd");
+    const current = lockConstraints.dates || [];
+    const updated = current.includes(dateStr)
+      ? current.filter((d) => d !== dateStr)
+      : [...current, dateStr];
+    setLockConstraints({ ...lockConstraints, dates: updated.length ? updated : undefined });
+  };
+
+  const removeDate = (dateStr: string) => {
+    const current = lockConstraints.dates || [];
+    const updated = current.filter((d) => d !== dateStr);
+    setLockConstraints({ ...lockConstraints, dates: updated.length ? updated : undefined });
+  };
+
   const getStatusDisplay = () => {
     switch (status) {
       case "ready":
@@ -187,6 +235,17 @@ export default function SchedulerPage() {
   const availableRooms = rooms.filter((r) => r.availability === "Available");
   const availableInvigilators = invigilators.filter((i) => i.availability !== "Unavailable");
   const availableTimeslots = timeslots.filter((t) => !t.isForbidden);
+
+  // Check if any constraints are active
+  const hasActiveConstraints =
+    (lockConstraints.roomIds?.length || 0) > 0 ||
+    (lockConstraints.dates?.length || 0) > 0 ||
+    (lockConstraints.timeslotIds?.length || 0) > 0 ||
+    (lockConstraints.invigilatorIds?.length || 0) > 0 ||
+    (lockConstraints.priorityExamIds?.length || 0) > 0;
+
+  // Convert date strings to Date objects for calendar
+  const selectedDates = (lockConstraints.dates || []).map((d) => new Date(d));
 
   return (
     <div className="min-h-screen">
@@ -288,8 +347,8 @@ export default function SchedulerPage() {
                   <div>
                     <h3 className="font-medium text-purple-900">Guided Scheduling Mode</h3>
                     <p className="mt-1 text-sm text-purple-700">
-                      Lock specific constraints to guide the AI. The scheduler will respect your preferences
-                      while finding the optimal solution for remaining variables.
+                      Lock multiple constraints to guide the AI. Select multiple rooms, dates, timeslots, 
+                      invigilators, or priority exams. The scheduler will respect your preferences.
                     </p>
                   </div>
                 </div>
@@ -297,54 +356,69 @@ export default function SchedulerPage() {
             </Card>
 
             {/* Active Constraints Summary */}
-            {(lockConstraints.roomId || lockConstraints.date || lockConstraints.timeslotId || lockConstraints.invigilatorId || lockConstraints.priorityExamIds?.length) && (
+            {hasActiveConstraints && (
               <Card className="border-amber-200 bg-amber-50">
                 <CardContent className="py-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Lock className="h-4 w-4 text-amber-600" />
-                      <span className="text-sm font-medium text-amber-800">Active Constraints:</span>
-                      <div className="flex flex-wrap gap-2">
-                        {lockConstraints.roomId && (
-                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
-                            <Building2 className="mr-1 h-3 w-3" />
-                            {rooms.find(r => r.id === lockConstraints.roomId)?.name}
+                      <span className="text-sm font-medium text-amber-800">Active:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {lockConstraints.roomIds?.map((id) => (
+                          <Badge key={id} variant="outline" className="border-amber-300 bg-white text-amber-700 gap-1">
+                            <Building2 className="h-3 w-3" />
+                            {rooms.find((r) => r.id === id)?.name}
+                            <button onClick={() => toggleRoom(id)} className="ml-1 hover:text-amber-900">
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
-                        )}
-                        {lockConstraints.date && (
-                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
-                            <Calendar className="mr-1 h-3 w-3" />
-                            {lockConstraints.date}
+                        ))}
+                        {lockConstraints.dates?.map((date) => (
+                          <Badge key={date} variant="outline" className="border-amber-300 bg-white text-amber-700 gap-1">
+                            <CalendarIcon className="h-3 w-3" />
+                            {format(new Date(date), "MMM d")}
+                            <button onClick={() => removeDate(date)} className="ml-1 hover:text-amber-900">
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
-                        )}
-                        {lockConstraints.timeslotId && (
-                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
-                            <Clock className="mr-1 h-3 w-3" />
-                            {timeslots.find(t => t.id === lockConstraints.timeslotId)?.label}
+                        ))}
+                        {lockConstraints.timeslotIds?.map((id) => (
+                          <Badge key={id} variant="outline" className="border-amber-300 bg-white text-amber-700 gap-1">
+                            <Clock className="h-3 w-3" />
+                            {timeslots.find((t) => t.id === id)?.label}
+                            <button onClick={() => toggleTimeslot(id)} className="ml-1 hover:text-amber-900">
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
-                        )}
-                        {lockConstraints.invigilatorId && (
-                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
-                            <User className="mr-1 h-3 w-3" />
-                            {invigilators.find(i => i.id === lockConstraints.invigilatorId)?.name}
+                        ))}
+                        {lockConstraints.invigilatorIds?.map((id) => (
+                          <Badge key={id} variant="outline" className="border-amber-300 bg-white text-amber-700 gap-1">
+                            <User className="h-3 w-3" />
+                            {invigilators.find((i) => i.id === id)?.name}
+                            <button onClick={() => toggleInvigilator(id)} className="ml-1 hover:text-amber-900">
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
-                        )}
-                        {lockConstraints.priorityExamIds?.[0] && (
-                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
-                            <FileText className="mr-1 h-3 w-3" />
-                            {exams.find(e => e.id === lockConstraints.priorityExamIds?.[0])?.code}
+                        ))}
+                        {lockConstraints.priorityExamIds?.map((id) => (
+                          <Badge key={id} variant="outline" className="border-blue-300 bg-white text-blue-700 gap-1">
+                            <Layers className="h-3 w-3" />
+                            {exams.find((e) => e.id === id)?.code}
+                            <button onClick={() => togglePriorityExam(id)} className="ml-1 hover:text-blue-900">
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
-                        )}
+                        ))}
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                      className="text-amber-600 hover:text-amber-700 hover:bg-amber-100 shrink-0"
                       onClick={() => setLockConstraints({})}
                     >
                       <RotateCcw className="mr-1 h-3 w-3" />
-                      Clear All
+                      Clear
                     </Button>
                   </div>
                 </CardContent>
@@ -353,228 +427,266 @@ export default function SchedulerPage() {
 
             {/* Constraint Selection Grid */}
             <div className="grid gap-4 md:grid-cols-2">
-              {/* Lock Room Card */}
-              <Card className={`transition-all ${lockConstraints.roomId ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+              {/* Lock Rooms Card */}
+              <Card className={cn("transition-all", lockConstraints.roomIds?.length ? "ring-2 ring-green-500 bg-green-50/30" : "bg-white hover:shadow-md")}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-lg p-2 ${lockConstraints.roomId ? 'bg-green-100' : 'bg-gray-100'}`}>
-                        <Building2 className={`h-4 w-4 ${lockConstraints.roomId ? 'text-green-600' : 'text-gray-500'}`} />
+                      <div className={cn("rounded-lg p-2", lockConstraints.roomIds?.length ? "bg-green-100" : "bg-gray-100")}>
+                        <Building2 className={cn("h-4 w-4", lockConstraints.roomIds?.length ? "text-green-600" : "text-gray-500")} />
                       </div>
                       <div>
-                        <CardTitle className="text-sm font-medium">Lock Room</CardTitle>
-                        <p className="text-xs text-gray-500">Force specific venue</p>
+                        <CardTitle className="text-sm font-medium">Lock Rooms</CardTitle>
+                        <p className="text-xs text-gray-500">Select allowed venues</p>
                       </div>
                     </div>
-                    {lockConstraints.roomId && (
-                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
-                    )}
+                    {lockConstraints.roomIds?.length ? (
+                      <Badge className="bg-green-100 text-green-700">{lockConstraints.roomIds.length} selected</Badge>
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  <Select
-                    value={lockConstraints.roomId || "none"}
-                    onValueChange={(v) =>
-                      setLockConstraints({
-                        ...lockConstraints,
-                        roomId: v === "none" ? undefined : v,
-                      })
-                    }
-                  >
-                    <SelectTrigger className={lockConstraints.roomId ? 'border-green-300' : ''}>
-                      <SelectValue placeholder="Select room..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <span className="text-gray-500">Any room (auto-select)</span>
-                      </SelectItem>
-                      {availableRooms.map((room) => (
-                        <SelectItem key={room.id} value={room.id}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{room.name}</span>
+                  <ScrollArea className="h-[140px] rounded-md border p-2">
+                    <div className="space-y-1">
+                      {availableRooms.map((room) => {
+                        const isSelected = lockConstraints.roomIds?.includes(room.id);
+                        return (
+                          <button
+                            key={room.id}
+                            onClick={() => toggleRoom(room.id)}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+                              isSelected ? "bg-green-100 text-green-800" : "hover:bg-gray-100"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSelected ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <div className="h-4 w-4 rounded border border-gray-300" />
+                              )}
+                              <span className="font-medium">{room.name}</span>
+                            </div>
                             <Badge variant="outline" className="text-xs">{room.capacity} seats</Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
 
-              {/* Lock Timeslot Card */}
-              <Card className={`transition-all ${lockConstraints.timeslotId ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+              {/* Lock Timeslots Card */}
+              <Card className={cn("transition-all", lockConstraints.timeslotIds?.length ? "ring-2 ring-green-500 bg-green-50/30" : "bg-white hover:shadow-md")}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-lg p-2 ${lockConstraints.timeslotId ? 'bg-green-100' : 'bg-gray-100'}`}>
-                        <Clock className={`h-4 w-4 ${lockConstraints.timeslotId ? 'text-green-600' : 'text-gray-500'}`} />
+                      <div className={cn("rounded-lg p-2", lockConstraints.timeslotIds?.length ? "bg-green-100" : "bg-gray-100")}>
+                        <Clock className={cn("h-4 w-4", lockConstraints.timeslotIds?.length ? "text-green-600" : "text-gray-500")} />
                       </div>
                       <div>
-                        <CardTitle className="text-sm font-medium">Lock Timeslot</CardTitle>
-                        <p className="text-xs text-gray-500">Force specific time</p>
+                        <CardTitle className="text-sm font-medium">Lock Timeslots</CardTitle>
+                        <p className="text-xs text-gray-500">Select allowed times</p>
                       </div>
                     </div>
-                    {lockConstraints.timeslotId && (
-                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
-                    )}
+                    {lockConstraints.timeslotIds?.length ? (
+                      <Badge className="bg-green-100 text-green-700">{lockConstraints.timeslotIds.length} selected</Badge>
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  <Select
-                    value={lockConstraints.timeslotId || "none"}
-                    onValueChange={(v) =>
-                      setLockConstraints({
-                        ...lockConstraints,
-                        timeslotId: v === "none" ? undefined : v,
-                      })
-                    }
-                  >
-                    <SelectTrigger className={lockConstraints.timeslotId ? 'border-green-300' : ''}>
-                      <SelectValue placeholder="Select timeslot..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <span className="text-gray-500">Any timeslot (auto-select)</span>
-                      </SelectItem>
-                      {availableTimeslots.map((ts) => (
-                        <SelectItem key={ts.id} value={ts.id}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{ts.date}</span>
+                  <ScrollArea className="h-[140px] rounded-md border p-2">
+                    <div className="space-y-1">
+                      {availableTimeslots.map((ts) => {
+                        const isSelected = lockConstraints.timeslotIds?.includes(ts.id);
+                        return (
+                          <button
+                            key={ts.id}
+                            onClick={() => toggleTimeslot(ts.id)}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+                              isSelected ? "bg-green-100 text-green-800" : "hover:bg-gray-100"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSelected ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <div className="h-4 w-4 rounded border border-gray-300" />
+                              )}
+                              <span className="font-medium">{ts.date}</span>
+                            </div>
                             <Badge variant="outline" className="text-xs">{ts.label} ({ts.startTime})</Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
 
-              {/* Lock Date Card */}
-              <Card className={`transition-all ${lockConstraints.date ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+              {/* Lock Dates Card with Calendar */}
+              <Card className={cn("transition-all", lockConstraints.dates?.length ? "ring-2 ring-green-500 bg-green-50/30" : "bg-white hover:shadow-md")}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-lg p-2 ${lockConstraints.date ? 'bg-green-100' : 'bg-gray-100'}`}>
-                        <Calendar className={`h-4 w-4 ${lockConstraints.date ? 'text-green-600' : 'text-gray-500'}`} />
+                      <div className={cn("rounded-lg p-2", lockConstraints.dates?.length ? "bg-green-100" : "bg-gray-100")}>
+                        <CalendarDays className={cn("h-4 w-4", lockConstraints.dates?.length ? "text-green-600" : "text-gray-500")} />
                       </div>
                       <div>
-                        <CardTitle className="text-sm font-medium">Lock Date</CardTitle>
-                        <p className="text-xs text-gray-500">Force specific day</p>
+                        <CardTitle className="text-sm font-medium">Lock Dates</CardTitle>
+                        <p className="text-xs text-gray-500">Select allowed days</p>
                       </div>
                     </div>
-                    {lockConstraints.date && (
-                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
-                    )}
+                    {lockConstraints.dates?.length ? (
+                      <Badge className="bg-green-100 text-green-700">{lockConstraints.dates.length} selected</Badge>
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  <Input
-                    type="date"
-                    value={lockConstraints.date || ""}
-                    className={lockConstraints.date ? 'border-green-300' : ''}
-                    onChange={(e) =>
-                      setLockConstraints({
-                        ...lockConstraints,
-                        date: e.target.value || undefined,
-                      })
-                    }
-                  />
+                  <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !lockConstraints.dates?.length && "text-gray-500",
+                          lockConstraints.dates?.length && "border-green-300"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {lockConstraints.dates?.length ? (
+                          <span>{lockConstraints.dates.length} date(s) selected</span>
+                        ) : (
+                          <span>Click to select dates...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="multiple"
+                        selected={selectedDates}
+                        onSelect={(dates) => {
+                          const dateStrs = dates?.map((d) => format(d, "yyyy-MM-dd")) || [];
+                          setLockConstraints({
+                            ...lockConstraints,
+                            dates: dateStrs.length ? dateStrs : undefined,
+                          });
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {lockConstraints.dates?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {lockConstraints.dates.map((date) => (
+                        <Badge key={date} variant="secondary" className="gap-1">
+                          {format(new Date(date), "MMM d, yyyy")}
+                          <button onClick={() => removeDate(date)} className="hover:text-red-600">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
 
-              {/* Priority Exam Card */}
-              <Card className={`transition-all ${lockConstraints.priorityExamIds?.length ? 'ring-2 ring-blue-500 bg-blue-50/30' : 'bg-white hover:shadow-md'}`}>
+              {/* Priority Exams Card */}
+              <Card className={cn("transition-all", lockConstraints.priorityExamIds?.length ? "ring-2 ring-blue-500 bg-blue-50/30" : "bg-white hover:shadow-md")}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-lg p-2 ${lockConstraints.priorityExamIds?.length ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        <Layers className={`h-4 w-4 ${lockConstraints.priorityExamIds?.length ? 'text-blue-600' : 'text-gray-500'}`} />
+                      <div className={cn("rounded-lg p-2", lockConstraints.priorityExamIds?.length ? "bg-blue-100" : "bg-gray-100")}>
+                        <Layers className={cn("h-4 w-4", lockConstraints.priorityExamIds?.length ? "text-blue-600" : "text-gray-500")} />
                       </div>
                       <div>
-                        <CardTitle className="text-sm font-medium">Priority Exam</CardTitle>
-                        <p className="text-xs text-gray-500">Schedule this first</p>
+                        <CardTitle className="text-sm font-medium">Priority Exams</CardTitle>
+                        <p className="text-xs text-gray-500">Schedule these first</p>
                       </div>
                     </div>
-                    {lockConstraints.priorityExamIds?.length && (
-                      <Badge className="bg-blue-100 text-blue-700">Priority</Badge>
-                    )}
+                    {lockConstraints.priorityExamIds?.length ? (
+                      <Badge className="bg-blue-100 text-blue-700">{lockConstraints.priorityExamIds.length} selected</Badge>
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  <Select
-                    value={lockConstraints.priorityExamIds?.[0] || "none"}
-                    onValueChange={(v) =>
-                      setLockConstraints({
-                        ...lockConstraints,
-                        priorityExamIds: v === "none" ? undefined : [v],
-                      })
-                    }
-                  >
-                    <SelectTrigger className={lockConstraints.priorityExamIds?.length ? 'border-blue-300' : ''}>
-                      <SelectValue placeholder="Select exam..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <span className="text-gray-500">No priority (MCV heuristic)</span>
-                      </SelectItem>
-                      {exams.map((exam) => (
-                        <SelectItem key={exam.id} value={exam.id}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{exam.code}</span>
-                            <span className="text-gray-500 text-xs truncate max-w-[150px]">{exam.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ScrollArea className="h-[140px] rounded-md border p-2">
+                    <div className="space-y-1">
+                      {exams.map((exam) => {
+                        const isSelected = lockConstraints.priorityExamIds?.includes(exam.id);
+                        return (
+                          <button
+                            key={exam.id}
+                            onClick={() => togglePriorityExam(exam.id)}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+                              isSelected ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSelected ? (
+                                <Check className="h-4 w-4 text-blue-600" />
+                              ) : (
+                                <div className="h-4 w-4 rounded border border-gray-300" />
+                              )}
+                              <span className="font-medium">{exam.code}</span>
+                            </div>
+                            <span className="text-xs text-gray-500 truncate max-w-[100px]">{exam.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
 
-              {/* Invigilator Lock Card */}
-              <Card className={`transition-all md:col-span-2 ${lockConstraints.invigilatorId ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+              {/* Lock Invigilators Card */}
+              <Card className={cn("transition-all md:col-span-2", lockConstraints.invigilatorIds?.length ? "ring-2 ring-green-500 bg-green-50/30" : "bg-white hover:shadow-md")}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`rounded-lg p-2 ${lockConstraints.invigilatorId ? 'bg-green-100' : 'bg-gray-100'}`}>
-                        <User className={`h-4 w-4 ${lockConstraints.invigilatorId ? 'text-green-600' : 'text-gray-500'}`} />
+                      <div className={cn("rounded-lg p-2", lockConstraints.invigilatorIds?.length ? "bg-green-100" : "bg-gray-100")}>
+                        <User className={cn("h-4 w-4", lockConstraints.invigilatorIds?.length ? "text-green-600" : "text-gray-500")} />
                       </div>
                       <div>
-                        <CardTitle className="text-sm font-medium">Lock Invigilator</CardTitle>
-                        <p className="text-xs text-gray-500">Assign specific supervisor for all exams</p>
+                        <CardTitle className="text-sm font-medium">Lock Invigilators</CardTitle>
+                        <p className="text-xs text-gray-500">Select allowed supervisors</p>
                       </div>
                     </div>
-                    {lockConstraints.invigilatorId && (
-                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
-                    )}
+                    {lockConstraints.invigilatorIds?.length ? (
+                      <Badge className="bg-green-100 text-green-700">{lockConstraints.invigilatorIds.length} selected</Badge>
+                    ) : null}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2">
-                  <Select
-                    value={lockConstraints.invigilatorId || "none"}
-                    onValueChange={(v) =>
-                      setLockConstraints({
-                        ...lockConstraints,
-                        invigilatorId: v === "none" ? undefined : v,
-                      })
-                    }
-                  >
-                    <SelectTrigger className={lockConstraints.invigilatorId ? 'border-green-300' : ''}>
-                      <SelectValue placeholder="Select invigilator..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <span className="text-gray-500">Any available invigilator (balanced load)</span>
-                      </SelectItem>
-                      {availableInvigilators.map((inv) => (
-                        <SelectItem key={inv.id} value={inv.id}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{inv.name}</span>
-                            <Badge variant="outline" className="text-xs">Max {inv.maxLoad}/day</Badge>
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
+                    {availableInvigilators.map((inv) => {
+                      const isSelected = lockConstraints.invigilatorIds?.includes(inv.id);
+                      return (
+                        <button
+                          key={inv.id}
+                          onClick={() => toggleInvigilator(inv.id)}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border p-3 text-sm transition-all",
+                            isSelected
+                              ? "border-green-300 bg-green-50 text-green-800"
+                              : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          )}
+                        >
+                          {isSelected ? (
+                            <Check className="h-4 w-4 text-green-600 shrink-0" />
+                          ) : (
+                            <div className="h-4 w-4 rounded border border-gray-300 shrink-0" />
+                          )}
+                          <div className="text-left min-w-0">
+                            <p className="font-medium truncate">{inv.name}</p>
+                            <p className="text-xs text-gray-500">Max {inv.maxLoad}/day</p>
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </CardContent>
               </Card>
             </div>

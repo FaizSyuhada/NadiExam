@@ -163,24 +163,27 @@ export async function scheduleExams(
       examsToSchedule = [...priorityExams, ...otherExams];
     }
     
-    if (lockConstraints.roomId) {
-      // Only use the specified room
-      roomsToUse = rooms.filter((r) => r.id === lockConstraints.roomId);
+    if (lockConstraints.roomIds && lockConstraints.roomIds.length > 0) {
+      // Only use the specified rooms
+      roomsToUse = rooms.filter((r) => lockConstraints.roomIds!.includes(r.id));
     }
     
-    if (lockConstraints.timeslotId) {
-      // Only use the specified timeslot
-      timeslotsToUse = timeslots.filter(
-        (t) => t.id === lockConstraints.timeslotId
+    if (lockConstraints.timeslotIds && lockConstraints.timeslotIds.length > 0) {
+      // Only use the specified timeslots
+      timeslotsToUse = timeslots.filter((t) =>
+        lockConstraints.timeslotIds!.includes(t.id)
       );
     }
     
-    if (lockConstraints.date) {
-      // Only use timeslots on the specified date
-      timeslotsToUse = timeslots.filter(
-        (t) => t.date === lockConstraints.date
+    if (lockConstraints.dates && lockConstraints.dates.length > 0) {
+      // Only use timeslots on the specified dates
+      timeslotsToUse = timeslots.filter((t) =>
+        lockConstraints.dates!.includes(t.date)
       );
     }
+    
+    // Note: invigilatorIds constraint would need to be handled in search.ts
+    // for more fine-grained control
   }
   
   // Simulate async for progress updates

@@ -190,9 +190,9 @@ export interface ActivityLogEntry {
 // ========================================
 
 export interface LockConstraints {
-  roomId?: string;
-  date?: string;
-  timeslotId?: string;
-  invigilatorId?: string;
+  roomIds?: string[];
+  dates?: string[];
+  timeslotIds?: string[];
+  invigilatorIds?: string[];
   priorityExamIds?: string[];
 }
