@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/lib/store";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Building2, Filter } from "lucide-react";
 import { Room } from "@/lib/types";
 
 export default function RoomsPage() {
@@ -38,11 +38,24 @@ export default function RoomsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterAvailability, setFilterAvailability] = useState<string>("all");
   const [formData, setFormData] = useState({
     name: "",
     capacity: 50,
     building: "",
     availability: "Available" as Room["availability"],
+  });
+
+  // Filter rooms based on search query and availability filter
+  const filteredRooms = rooms.filter((room) => {
+    const matchesSearch =
+      room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      room.building.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      room.capacity.toString().includes(searchQuery);
+    const matchesAvailability =
+      filterAvailability === "all" || room.availability === filterAvailability;
+    return matchesSearch && matchesAvailability;
   });
 
   const handleAddRoom = () => {
@@ -119,8 +132,95 @@ export default function RoomsPage() {
       <Header title="Rooms" />
 
       <div className="p-6">
-        {/* Add Button */}
-        <div className="mb-6 flex justify-end">
+        {/* Stats Cards */}
+        <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Card className="bg-white">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-blue-100 p-2">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{rooms.length}</p>
+                  <p className="text-xs text-gray-500">Total Rooms</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-green-100 p-2">
+                  <Building2 className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {rooms.filter((r) => r.availability === "Available").length}
+                  </p>
+                  <p className="text-xs text-gray-500">Available</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-amber-100 p-2">
+                  <Building2 className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {rooms.filter((r) => r.availability === "In Use").length}
+                  </p>
+                  <p className="text-xs text-gray-500">In Use</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-red-100 p-2">
+                  <Building2 className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {rooms.filter((r) => r.availability === "Maintenance").length}
+                  </p>
+                  <p className="text-xs text-gray-500">Maintenance</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filter Bar */}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search by room name, building, or capacity..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <Select value={filterAvailability} onValueChange={setFilterAvailability}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Available">Available</SelectItem>
+                  <SelectItem value="In Use">In Use</SelectItem>
+                  <SelectItem value="Maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Room
@@ -130,6 +230,17 @@ export default function RoomsPage() {
         {/* Rooms Table */}
         <Card className="bg-white">
           <CardContent className="p-0">
+            {filteredRooms.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Building2 className="h-12 w-12 text-gray-300 mb-4" />
+                <p className="text-gray-500 font-medium">No rooms found</p>
+                <p className="text-gray-400 text-sm">
+                  {searchQuery || filterAvailability !== "all"
+                    ? "Try adjusting your search or filter"
+                    : "Add a room to get started"}
+                </p>
+              </div>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -141,7 +252,7 @@ export default function RoomsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rooms.map((room) => (
+                {filteredRooms.map((room) => (
                   <TableRow key={room.id}>
                     <TableCell className="font-medium">{room.name}</TableCell>
                     <TableCell>{room.capacity}</TableCell>
@@ -167,8 +278,16 @@ export default function RoomsPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
+
+        {/* Results count */}
+        {(searchQuery || filterAvailability !== "all") && filteredRooms.length > 0 && (
+          <p className="mt-4 text-sm text-gray-500">
+            Showing {filteredRooms.length} of {rooms.length} rooms
+          </p>
+        )}
       </div>
 
       {/* Add Room Dialog */}
