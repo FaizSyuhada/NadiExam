@@ -38,6 +38,7 @@ import {
   Settings2,
   Lock,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function SchedulerPage() {
   const {
@@ -547,16 +548,16 @@ export default function SchedulerPage() {
 
               <div className="mt-6 flex gap-3">
                 <Button asChild className="flex-1">
-                  <a href="/timetable">
+                  <Link href="/timetable">
                     View Timetable
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
+                  </Link>
                 </Button>
                 <Button asChild variant="outline" className="flex-1">
-                  <a href="/ai-logic">
+                  <Link href="/ai-logic">
                     <Brain className="mr-2 h-4 w-4" />
                     View AI Reasoning
-                  </a>
+                  </Link>
                 </Button>
               </div>
             </CardContent>

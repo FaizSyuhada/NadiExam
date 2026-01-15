@@ -75,6 +75,7 @@ interface AppState {
   setTimetableVersion: (version: TimetableVersion | null) => void;
   approveTimetable: () => void;
   publishTimetable: () => void;
+  clearTimetable: () => void;
   
   setLockConstraints: (constraints: LockConstraints) => void;
   setSchedulingMode: (mode: "automatic" | "guided") => void;
@@ -169,6 +170,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         : null,
     })),
+  clearTimetable: () =>
+    set({
+      scheduleResult: null,
+      timetableVersion: null,
+      schedulingProgress: 0,
+    }),
   
   setLockConstraints: (constraints) => set({ lockConstraints: constraints }),
   setSchedulingMode: (mode) => set({ schedulingMode: mode }),

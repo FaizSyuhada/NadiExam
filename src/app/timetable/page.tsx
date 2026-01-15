@@ -58,8 +58,11 @@ import {
   Eye,
   X,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function TimetablePage() {
+  const router = useRouter();
   const {
     scheduleResult,
     timetableVersion,
@@ -70,6 +73,8 @@ export default function TimetablePage() {
     approveTimetable,
     publishTimetable,
     addActivity,
+    clearTimetable,
+    setSchedulingMode,
   } = useAppStore();
 
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
@@ -149,13 +154,18 @@ export default function TimetablePage() {
   };
 
   const handleReject = () => {
-    // Reset the timetable version to allow regeneration
+    clearTimetable();
     addActivity({
       type: "scheduler",
       title: "Timetable rejected",
       description: "Draft timetable has been rejected and cleared",
     });
-    // You could add a store method to clear the timetable if needed
+    router.push("/scheduler");
+  };
+
+  const handleEdit = () => {
+    setSchedulingMode("guided");
+    router.push("/scheduler");
   };
 
   const handlePublish = () => {
@@ -279,11 +289,7 @@ export default function TimetablePage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" className="bg-white" onClick={() => openDetailDialog(assignments[0]?.examId)}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  View Details
-                </Button>
-                <Button variant="outline" size="icon" className="bg-white">
+                <Button variant="outline" size="icon" className="bg-white" onClick={handleEdit}>
                   <Pencil className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" className="bg-white" onClick={handleReviewConflicts}>
@@ -324,10 +330,6 @@ export default function TimetablePage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" className="bg-white" onClick={() => openDetailDialog(assignments[0]?.examId)}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  View Details
-                </Button>
                 <Button variant="outline" className="bg-white" onClick={handleReviewConflicts}>
                   <Eye className="mr-2 h-4 w-4" />
                   Review Conflicts
@@ -363,10 +365,6 @@ export default function TimetablePage() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" className="bg-white" onClick={() => openDetailDialog(assignments[0]?.examId)}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  View Details
-                </Button>
                 <Button variant="outline" className="bg-white" onClick={handleExport}>
                   <Download className="mr-2 h-4 w-4" />
                   Export
