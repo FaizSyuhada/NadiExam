@@ -193,5 +193,6 @@ export interface LockConstraints {
   roomId?: string;
   date?: string;
   timeslotId?: string;
+  invigilatorId?: string;
   priorityExamIds?: string[];
 }

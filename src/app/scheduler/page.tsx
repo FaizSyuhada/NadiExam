@@ -37,6 +37,11 @@ import {
   ArrowRight,
   Settings2,
   Lock,
+  User,
+  RotateCcw,
+  Layers,
+  Shield,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -272,122 +277,307 @@ export default function SchedulerPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="guided" className="mt-6">
-            <Card className="bg-white">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Lock className="h-4 w-4 text-[hsl(0_35%_30%)]" />
-                  Lock Constraints
-                </CardTitle>
-                <p className="text-sm text-gray-500">
-                  Optionally lock specific resources to guide the scheduling
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm">
-                      <Building2 className="h-4 w-4 text-gray-400" />
-                      Lock Room
-                    </Label>
-                    <Select
-                      value={lockConstraints.roomId || "none"}
-                      onValueChange={(v) =>
-                        setLockConstraints({
-                          ...lockConstraints,
-                          roomId: v === "none" ? undefined : v,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select room" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Any room</SelectItem>
-                        {availableRooms.map((room) => (
-                          <SelectItem key={room.id} value={room.id}>
-                            {room.name} ({room.capacity} seats)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+          <TabsContent value="guided" className="mt-6 space-y-6">
+            {/* Guided Mode Info Banner */}
+            <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white">
+              <CardContent className="py-4">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-purple-100 p-2">
+                    <Shield className="h-5 w-5 text-purple-600" />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      Lock Date
-                    </Label>
-                    <Input
-                      type="date"
-                      value={lockConstraints.date || ""}
-                      onChange={(e) =>
-                        setLockConstraints({
-                          ...lockConstraints,
-                          date: e.target.value || undefined,
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      Lock Timeslot
-                    </Label>
-                    <Select
-                      value={lockConstraints.timeslotId || "none"}
-                      onValueChange={(v) =>
-                        setLockConstraints({
-                          ...lockConstraints,
-                          timeslotId: v === "none" ? undefined : v,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select timeslot" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Any timeslot</SelectItem>
-                        {availableTimeslots.map((ts) => (
-                          <SelectItem key={ts.id} value={ts.id}>
-                            {ts.date} - {ts.label} ({ts.startTime})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm">
-                      <FileText className="h-4 w-4 text-gray-400" />
-                      Prioritize Exam
-                    </Label>
-                    <Select
-                      value={lockConstraints.priorityExamIds?.[0] || "none"}
-                      onValueChange={(v) =>
-                        setLockConstraints({
-                          ...lockConstraints,
-                          priorityExamIds: v === "none" ? undefined : [v],
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select exam" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No priority</SelectItem>
-                        {exams.map((exam) => (
-                          <SelectItem key={exam.id} value={exam.id}>
-                            {exam.code} - {exam.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div>
+                    <h3 className="font-medium text-purple-900">Guided Scheduling Mode</h3>
+                    <p className="mt-1 text-sm text-purple-700">
+                      Lock specific constraints to guide the AI. The scheduler will respect your preferences
+                      while finding the optimal solution for remaining variables.
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Active Constraints Summary */}
+            {(lockConstraints.roomId || lockConstraints.date || lockConstraints.timeslotId || lockConstraints.invigilatorId || lockConstraints.priorityExamIds?.length) && (
+              <Card className="border-amber-200 bg-amber-50">
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-800">Active Constraints:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {lockConstraints.roomId && (
+                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
+                            <Building2 className="mr-1 h-3 w-3" />
+                            {rooms.find(r => r.id === lockConstraints.roomId)?.name}
+                          </Badge>
+                        )}
+                        {lockConstraints.date && (
+                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            {lockConstraints.date}
+                          </Badge>
+                        )}
+                        {lockConstraints.timeslotId && (
+                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
+                            <Clock className="mr-1 h-3 w-3" />
+                            {timeslots.find(t => t.id === lockConstraints.timeslotId)?.label}
+                          </Badge>
+                        )}
+                        {lockConstraints.invigilatorId && (
+                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
+                            <User className="mr-1 h-3 w-3" />
+                            {invigilators.find(i => i.id === lockConstraints.invigilatorId)?.name}
+                          </Badge>
+                        )}
+                        {lockConstraints.priorityExamIds?.[0] && (
+                          <Badge variant="outline" className="border-amber-300 bg-white text-amber-700">
+                            <FileText className="mr-1 h-3 w-3" />
+                            {exams.find(e => e.id === lockConstraints.priorityExamIds?.[0])?.code}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                      onClick={() => setLockConstraints({})}
+                    >
+                      <RotateCcw className="mr-1 h-3 w-3" />
+                      Clear All
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Constraint Selection Grid */}
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Lock Room Card */}
+              <Card className={`transition-all ${lockConstraints.roomId ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`rounded-lg p-2 ${lockConstraints.roomId ? 'bg-green-100' : 'bg-gray-100'}`}>
+                        <Building2 className={`h-4 w-4 ${lockConstraints.roomId ? 'text-green-600' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-medium">Lock Room</CardTitle>
+                        <p className="text-xs text-gray-500">Force specific venue</p>
+                      </div>
+                    </div>
+                    {lockConstraints.roomId && (
+                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <Select
+                    value={lockConstraints.roomId || "none"}
+                    onValueChange={(v) =>
+                      setLockConstraints({
+                        ...lockConstraints,
+                        roomId: v === "none" ? undefined : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger className={lockConstraints.roomId ? 'border-green-300' : ''}>
+                      <SelectValue placeholder="Select room..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-gray-500">Any room (auto-select)</span>
+                      </SelectItem>
+                      {availableRooms.map((room) => (
+                        <SelectItem key={room.id} value={room.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{room.name}</span>
+                            <Badge variant="outline" className="text-xs">{room.capacity} seats</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
+              {/* Lock Timeslot Card */}
+              <Card className={`transition-all ${lockConstraints.timeslotId ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`rounded-lg p-2 ${lockConstraints.timeslotId ? 'bg-green-100' : 'bg-gray-100'}`}>
+                        <Clock className={`h-4 w-4 ${lockConstraints.timeslotId ? 'text-green-600' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-medium">Lock Timeslot</CardTitle>
+                        <p className="text-xs text-gray-500">Force specific time</p>
+                      </div>
+                    </div>
+                    {lockConstraints.timeslotId && (
+                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <Select
+                    value={lockConstraints.timeslotId || "none"}
+                    onValueChange={(v) =>
+                      setLockConstraints({
+                        ...lockConstraints,
+                        timeslotId: v === "none" ? undefined : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger className={lockConstraints.timeslotId ? 'border-green-300' : ''}>
+                      <SelectValue placeholder="Select timeslot..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-gray-500">Any timeslot (auto-select)</span>
+                      </SelectItem>
+                      {availableTimeslots.map((ts) => (
+                        <SelectItem key={ts.id} value={ts.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{ts.date}</span>
+                            <Badge variant="outline" className="text-xs">{ts.label} ({ts.startTime})</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
+              {/* Lock Date Card */}
+              <Card className={`transition-all ${lockConstraints.date ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`rounded-lg p-2 ${lockConstraints.date ? 'bg-green-100' : 'bg-gray-100'}`}>
+                        <Calendar className={`h-4 w-4 ${lockConstraints.date ? 'text-green-600' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-medium">Lock Date</CardTitle>
+                        <p className="text-xs text-gray-500">Force specific day</p>
+                      </div>
+                    </div>
+                    {lockConstraints.date && (
+                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <Input
+                    type="date"
+                    value={lockConstraints.date || ""}
+                    className={lockConstraints.date ? 'border-green-300' : ''}
+                    onChange={(e) =>
+                      setLockConstraints({
+                        ...lockConstraints,
+                        date: e.target.value || undefined,
+                      })
+                    }
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Priority Exam Card */}
+              <Card className={`transition-all ${lockConstraints.priorityExamIds?.length ? 'ring-2 ring-blue-500 bg-blue-50/30' : 'bg-white hover:shadow-md'}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`rounded-lg p-2 ${lockConstraints.priorityExamIds?.length ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                        <Layers className={`h-4 w-4 ${lockConstraints.priorityExamIds?.length ? 'text-blue-600' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-medium">Priority Exam</CardTitle>
+                        <p className="text-xs text-gray-500">Schedule this first</p>
+                      </div>
+                    </div>
+                    {lockConstraints.priorityExamIds?.length && (
+                      <Badge className="bg-blue-100 text-blue-700">Priority</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <Select
+                    value={lockConstraints.priorityExamIds?.[0] || "none"}
+                    onValueChange={(v) =>
+                      setLockConstraints({
+                        ...lockConstraints,
+                        priorityExamIds: v === "none" ? undefined : [v],
+                      })
+                    }
+                  >
+                    <SelectTrigger className={lockConstraints.priorityExamIds?.length ? 'border-blue-300' : ''}>
+                      <SelectValue placeholder="Select exam..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-gray-500">No priority (MCV heuristic)</span>
+                      </SelectItem>
+                      {exams.map((exam) => (
+                        <SelectItem key={exam.id} value={exam.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{exam.code}</span>
+                            <span className="text-gray-500 text-xs truncate max-w-[150px]">{exam.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
+              {/* Invigilator Lock Card */}
+              <Card className={`transition-all md:col-span-2 ${lockConstraints.invigilatorId ? 'ring-2 ring-green-500 bg-green-50/30' : 'bg-white hover:shadow-md'}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`rounded-lg p-2 ${lockConstraints.invigilatorId ? 'bg-green-100' : 'bg-gray-100'}`}>
+                        <User className={`h-4 w-4 ${lockConstraints.invigilatorId ? 'text-green-600' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm font-medium">Lock Invigilator</CardTitle>
+                        <p className="text-xs text-gray-500">Assign specific supervisor for all exams</p>
+                      </div>
+                    </div>
+                    {lockConstraints.invigilatorId && (
+                      <Badge className="bg-green-100 text-green-700">Locked</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <Select
+                    value={lockConstraints.invigilatorId || "none"}
+                    onValueChange={(v) =>
+                      setLockConstraints({
+                        ...lockConstraints,
+                        invigilatorId: v === "none" ? undefined : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger className={lockConstraints.invigilatorId ? 'border-green-300' : ''}>
+                      <SelectValue placeholder="Select invigilator..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="text-gray-500">Any available invigilator (balanced load)</span>
+                      </SelectItem>
+                      {availableInvigilators.map((inv) => (
+                        <SelectItem key={inv.id} value={inv.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{inv.name}</span>
+                            <Badge variant="outline" className="text-xs">Max {inv.maxLoad}/day</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
 
