@@ -264,7 +264,7 @@ export default function TimetablePage() {
               Go to the Scheduler page to generate an exam timetable using the AI engine.
             </p>
             <Button asChild>
-              <a href="/scheduler">Go to Scheduler</a>
+              <Link href="/scheduler">Go to Scheduler</Link>
             </Button>
           </Card>
         </div>
