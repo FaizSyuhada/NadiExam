@@ -219,13 +219,68 @@ export default function SchedulerPage() {
         );
       case "error":
         return (
-          <div className="flex items-center gap-3 rounded-lg bg-red-50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-200">
-              <XCircle className="h-5 w-5 text-red-600" />
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 rounded-lg bg-red-50 p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-200">
+                <XCircle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="font-medium text-red-700">Failed to Generate Schedule</p>
+                <p className="text-sm text-red-500">No valid solution found with current constraints</p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium text-red-700">Failed to Generate Schedule</p>
-              <p className="text-sm text-red-500">No valid solution found with current constraints</p>
+            {/* Show error details */}
+            <div className="rounded-lg border border-red-200 bg-red-50/50 p-4">
+              <p className="text-sm font-medium text-red-800 mb-2">Possible reasons:</p>
+              <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                {schedulingMode === "guided" && hasActiveConstraints && (
+                  <>
+                    <li>Locked constraints are too restrictive</li>
+                    {lockConstraints.roomIds?.length === 1 && (
+                      <li>Single room may not have enough capacity or time slots</li>
+                    )}
+                    {lockConstraints.dates?.length === 1 && (
+                      <li>Single date may not have enough available time slots for all exams</li>
+                    )}
+                    {lockConstraints.timeslotIds?.length && lockConstraints.timeslotIds.length < exams.length && (
+                      <li>Not enough time slots selected ({lockConstraints.timeslotIds.length} slots for {exams.length} exams)</li>
+                    )}
+                  </>
+                )}
+                <li>Room capacities may be insufficient for student enrollment</li>
+                <li>Student enrollment overlaps may create unsolvable conflicts</li>
+                <li>Available invigilators may exceed their daily limits</li>
+              </ul>
+              {schedulingMode === "guided" && hasActiveConstraints && (
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <p className="text-sm text-red-800">
+                    <strong>Suggestion:</strong> Try removing some lock constraints or switching to Automatic mode.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 text-red-700 border-red-300 hover:bg-red-100"
+                    onClick={() => setLockConstraints({})}
+                  >
+                    <RotateCcw className="mr-1 h-3 w-3" />
+                    Clear All Constraints
+                  </Button>
+                </div>
+              )}
+              {scheduleResult?.conflicts && scheduleResult.conflicts.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <p className="text-sm font-medium text-red-800 mb-2">
+                    Last {Math.min(5, scheduleResult.conflicts.length)} conflicts encountered:
+                  </p>
+                  <div className="space-y-1">
+                    {scheduleResult.conflicts.slice(-5).map((conflict, idx) => (
+                      <div key={idx} className="text-xs bg-white rounded p-2 border border-red-200">
+                        <span className="font-medium">{conflict.constraint}:</span> {conflict.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
