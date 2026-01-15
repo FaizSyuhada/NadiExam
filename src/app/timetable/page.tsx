@@ -53,6 +53,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  FileText,
+  Pencil,
+  Eye,
+  X,
 } from "lucide-react";
 
 export default function TimetablePage() {
@@ -144,6 +148,16 @@ export default function TimetablePage() {
     });
   };
 
+  const handleReject = () => {
+    // Reset the timetable version to allow regeneration
+    addActivity({
+      type: "scheduler",
+      title: "Timetable rejected",
+      description: "Draft timetable has been rejected and cleared",
+    });
+    // You could add a store method to clear the timetable if needed
+  };
+
   const handlePublish = () => {
     publishTimetable();
     addActivity({
@@ -196,52 +210,6 @@ export default function TimetablePage() {
       date: date.getDate(),
       month: date.toLocaleDateString("en-US", { month: "short" }),
     };
-  };
-
-  const getStatusBadge = () => {
-    switch (timetableVersion?.status) {
-      case "Draft":
-        return (
-          <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2">
-            <AlertCircle className="h-5 w-5 text-amber-600" />
-            <div>
-              <p className="font-medium text-amber-800">Draft Timetable</p>
-              <p className="text-xs text-amber-600">Review and approve before publishing</p>
-            </div>
-          </div>
-        );
-      case "Approved":
-        return (
-          <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-2">
-            <Check className="h-5 w-5 text-blue-600" />
-            <div>
-              <p className="font-medium text-blue-800">Approved</p>
-              <p className="text-xs text-blue-600">Ready to publish</p>
-            </div>
-          </div>
-        );
-      case "Published":
-        return (
-          <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-4 py-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <div>
-              <p className="font-medium text-green-800">Published v{timetableVersion.version}</p>
-              <p className="text-xs text-green-600">
-                {timetableVersion.publishedAt &&
-                  new Date(timetableVersion.publishedAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-              </p>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
   };
 
   const openDetailDialog = (examId: string) => {
@@ -300,31 +268,113 @@ export default function TimetablePage() {
 
       <div className="p-6">
         {/* Status and Actions Header */}
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          {getStatusBadge()}
-          <div className="flex flex-wrap items-center gap-2">
-            {timetableVersion?.status === "Draft" && (
-              <>
-                <Button variant="outline" onClick={handleReviewConflicts}>
-                  <AlertCircle className="mr-2 h-4 w-4" />
+        {timetableVersion?.status === "Draft" ? (
+          <Card className="mb-6 border-amber-200 bg-amber-50">
+            <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="font-semibold text-amber-800">Draft Timetable</p>
+                  <p className="text-sm text-amber-600">Review and approve before publishing</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" className="bg-white" onClick={() => openDetailDialog(assignments[0]?.examId)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Details
+                </Button>
+                <Button variant="outline" size="icon" className="bg-white">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" className="bg-white" onClick={handleReviewConflicts}>
+                  <Eye className="mr-2 h-4 w-4" />
                   Review Conflicts
                 </Button>
-                <Button variant="outline" onClick={handleApprove}>
-                  <Check className="mr-2 h-4 w-4" />
-                  Approve
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="border-green-300 bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700"
+                  onClick={handleApprove}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="border-red-300 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                  onClick={handleReject}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" className="bg-white" onClick={handleExport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : timetableVersion?.status === "Approved" ? (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-3">
+                <Check className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="font-semibold text-blue-800">Approved Timetable</p>
+                  <p className="text-sm text-blue-600">Ready to publish</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" className="bg-white" onClick={() => openDetailDialog(assignments[0]?.examId)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Details
+                </Button>
+                <Button variant="outline" className="bg-white" onClick={handleReviewConflicts}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Review Conflicts
                 </Button>
                 <Button onClick={handlePublish}>
                   <Send className="mr-2 h-4 w-4" />
-                  Publish Timetable
+                  Publish
                 </Button>
-              </>
-            )}
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-          </div>
-        </div>
+                <Button variant="outline" className="bg-white" onClick={handleExport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : timetableVersion?.status === "Published" ? (
+          <Card className="mb-6 border-green-200 bg-green-50">
+            <CardContent className="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="font-semibold text-green-800">Published v{timetableVersion.version}</p>
+                  <p className="text-sm text-green-600">
+                    {timetableVersion.publishedAt &&
+                      new Date(timetableVersion.publishedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" className="bg-white" onClick={() => openDetailDialog(assignments[0]?.examId)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  View Details
+                </Button>
+                <Button variant="outline" className="bg-white" onClick={handleExport}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* View Toggle and Filters */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
